@@ -1,13 +1,13 @@
 {
   "domain": "samsung_soundbar_local",
   "name": "Soundbar Local",
-  "version": "0.1.6",
-  "config_flow": true,
-  "documentation": "https://github.com/acnorytm/samsung_soundbar_local",
-  "issue_tracker": "https://github.com/acnorytm/samsung_soundbar_local/issues",
   "codeowners": ["@acnorytm"],
+  "config_flow": true,
   "dependencies": [],
+  "documentation": "https://github.com/acnorytm/samsung_soundbar_local",
   "integration_type": "device",
   "iot_class": "local_push",
-  "requirements": ["smartthings-local>=0.1.20", "cbor2"]
+  "issue_tracker": "https://github.com/acnorytm/samsung_soundbar_local/issues",
+  "requirements": ["smartthings-local>=0.1.20", "cbor2"],
+  "version": "0.1.7"
 }
