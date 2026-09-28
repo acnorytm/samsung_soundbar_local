@@ -1,0 +1,23 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Samsung Soundbar (Local)",
+        "description": "Enter the soundbar's LAN address and its OwnerPSK credential.",
+        "data": {
+          "host": "IP address",
+          "port": "Secure DTLS port",
+          "psk_identity": "PSK identity (OCF owner UUID)",
+          "psk_key": "PSK key (hex)"
+        }
+      }
+    },
+    "error": {
+      "bad_credential": "PSK identity must be a UUID and the key must be hex.",
+      "cannot_connect": "Could not open an authenticated session. Check the IP, port, and credential."
+    },
+    "abort": {
+      "already_configured": "This soundbar is already configured."
+    }
+  }
+}
