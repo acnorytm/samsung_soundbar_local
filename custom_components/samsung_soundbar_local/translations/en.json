@@ -2,7 +2,7 @@
   "config": {
     "step": {
       "user": {
-        "title": "Samsung Soundbar (Local)",
+        "title": "Soundbar Local",
         "description": "Enter the soundbar's LAN address and its OwnerPSK credential.",
         "data": {
           "host": "IP address",

@@ -2,7 +2,7 @@
   <img src="https://raw.githubusercontent.com/acnorytm/samsung_soundbar_local/main/logo.png?v=4" alt="Samsung Soundbar (Local)" width="180"/>
 </p>
 
-# Samsung Soundbar (Local)
+# Soundbar Local
 
 Cloud-free, **local-push** control of a Samsung HW-Q900A soundbar over its OCF
 (IoTivity) CoAP-DTLS interface. No SmartThings account at runtime — Home
