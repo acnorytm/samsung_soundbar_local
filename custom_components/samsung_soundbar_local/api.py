@@ -12,13 +12,25 @@ import socket
 import struct
 import threading
 from collections.abc import Callable
+from time import monotonic
 from uuid import UUID
 
 import cbor2
 from smartthings_local.protocol.auth import PskAuth
 from smartthings_local.protocol.dtls_session import DtlsCoapSession
 
+try:  # transient per-request timeout, distinct from a dead connection
+    from smartthings_local.errors import SessionTimeoutError
+except Exception:  # noqa: BLE001 - never fail import over an optional name
+    class SessionTimeoutError(Exception):  # type: ignore[no-redef]
+        """Fallback if the library doesn't export it."""
+
 from .const import PLAINTEXT_COAP_PORT
+
+# The soundbar accepts a single DTLS peer. Never reconnect more often than this;
+# a reconnect-per-failed-request storm jams the device for every client.
+_RECONNECT_COOLDOWN_S = 30.0
+_REQUEST_TIMEOUT_S = 6.0
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -53,14 +65,38 @@ class SoundbarClient:
         # current session (cleared whenever the session is dropped).
         self._observe_hrefs: set[str] = set()
         self._subscribed: set[str] = set()
+        # Rate-limit reconnects so a run of failures can never storm the device.
+        self._last_connect_attempt = float("-inf")
 
     def set_notification_handler(self, cb: Callable[[str, dict], None]) -> None:
         self._notify_cb = cb
 
     # -- lifecycle -------------------------------------------------------
-    def _connect_locked(self) -> None:
+    def _ensure_connected_locked(self) -> None:
+        """Open one session if none is live, at most once per cooldown.
+
+        The cooldown is the storm guard: after a connection-level failure we
+        refuse to reconnect again for a while, so a bad run raises quickly
+        instead of firing a burst of handshakes at a one-peer device.
+        """
         if self._sess is not None:
             return
+        since = monotonic() - self._last_connect_attempt
+        if since < _RECONNECT_COOLDOWN_S:
+            raise SoundbarError(
+                f"reconnect on cooldown ({_RECONNECT_COOLDOWN_S - since:.0f}s left)"
+            )
+        self._last_connect_attempt = monotonic()
+        try:
+            self._open_locked()
+        except Exception as err:  # noqa: BLE001
+            # A reboot can move the secure port; try once at the new one.
+            if self._rediscover_port():
+                self._open_locked()
+            else:
+                raise SoundbarError(f"connect failed: {err}") from err
+
+    def _open_locked(self) -> None:
         auth = PskAuth(identity=self._identity, key=self._key)
         sess = DtlsCoapSession(self._host, self._port, auth=auth,
                                on_notification=self._dispatch_notification)
@@ -112,7 +148,7 @@ class SoundbarClient:
         with self._lock:
             self._observe_hrefs.update(hrefs)
             try:
-                self._connect_locked()
+                self._ensure_connected_locked()
                 self._resubscribe_locked()
             except Exception as err:  # noqa: BLE001
                 _LOGGER.debug("observe setup deferred: %s", err)
@@ -145,29 +181,39 @@ class SoundbarClient:
             return self._request_locked("post", href, payload)
 
     def _request_locked(self, verb: str, href: str, payload: dict | None) -> dict:
-        last_err: Exception | None = None
-        for attempt in range(2):  # one reconnect retry
+        self._ensure_connected_locked()
+        sess = self._sess
+        if sess is None:  # cooldown declined to open one
+            raise SoundbarError(f"{verb} {href}: no session")
+
+        def _do() -> dict:
+            if verb == "get":
+                _code, body = sess.get(_segs(href), timeout=_REQUEST_TIMEOUT_S)
+            else:
+                _code, body = sess.post(
+                    _segs(href), cbor2.dumps(payload), timeout=_REQUEST_TIMEOUT_S
+                )
+            decoded = cbor2.loads(body) if body else {}
+            return decoded if isinstance(decoded, dict) else {"_value": decoded}
+
+        try:
+            return _do()
+        except SessionTimeoutError as err:
+            # A missed response is NOT a dead connection. Retry once on the
+            # SAME session and keep it open — reconnecting on every timeout is
+            # exactly what stormed this one-peer device. If it times out again,
+            # report failure but leave the session for the next request/push.
+            _LOGGER.debug("%s %s timed out; retrying on same session", verb, href)
             try:
-                self._connect_locked()
-                assert self._sess is not None
-                if verb == "get":
-                    code, body = self._sess.get(_segs(href))
-                else:
-                    code, body = self._sess.post(_segs(href), cbor2.dumps(payload))
-                if not str(code).startswith("6") and not str(code).startswith("2"):
-                    # smartthings-local returns int CoAP codes: 69=2.05, 68=2.04
-                    pass
-                decoded = cbor2.loads(body) if body else {}
-                if not isinstance(decoded, dict):
-                    decoded = {"_value": decoded}
-                return decoded
-            except Exception as err:  # noqa: BLE001
-                last_err = err
-                _LOGGER.debug("%s %s failed (attempt %d): %s", verb, href, attempt, err)
-                self._drop_locked()
-                if attempt == 0:
-                    self._rediscover_port()
-        raise SoundbarError(f"{verb} {href} failed: {last_err}") from last_err
+                return _do()
+            except Exception as err2:  # noqa: BLE001
+                raise SoundbarError(f"{verb} {href} timed out") from err2
+        except Exception as err:  # noqa: BLE001 - connection-level failure
+            # The session looks broken: drop it so the next call can reconnect,
+            # but the cooldown bounds how often that actually happens.
+            _LOGGER.debug("%s %s failed (%s); dropping session", verb, href, err)
+            self._drop_locked()
+            raise SoundbarError(f"{verb} {href} failed: {err}") from err
 
 
 # --- minimal plaintext CoAP GET /oic/res to find the secure port ---------
