@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/acnorytm/samsung_soundbar_local/main/logo.png" alt="Samsung Soundbar (Local)" width="180"/>
+  <img src="https://raw.githubusercontent.com/acnorytm/samsung_soundbar_local/main/logo.png?v=4" alt="Samsung Soundbar (Local)" width="180"/>
 </p>
 
 # Samsung Soundbar (Local)

@@ -1,7 +1,7 @@
 {
   "domain": "samsung_soundbar_local",
   "name": "Samsung Soundbar (Local)",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "config_flow": true,
   "documentation": "https://github.com/acnorytm/samsung_soundbar_local",
   "issue_tracker": "https://github.com/acnorytm/samsung_soundbar_local/issues",
