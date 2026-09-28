@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="https://raw.githubusercontent.com/acnorytm/samsung_soundbar_local/main/logo.png" alt="Samsung Soundbar (Local)" width="180"/>
+</p>
+
 # Samsung Soundbar (Local)
 
 Cloud-free, **local-push** control of a Samsung HW-Q900A soundbar over its OCF

@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="https://raw.githubusercontent.com/acnorytm/samsung_soundbar_local/main/logo.png" alt="Samsung Soundbar (Local)" width="180"/>
+</p>
+
 # Samsung Soundbar (Local) — Home Assistant integration
 
 Local, cloud-free control of an HW-Q900A soundbar over OCF/CoAP-DTLS-PSK, using
