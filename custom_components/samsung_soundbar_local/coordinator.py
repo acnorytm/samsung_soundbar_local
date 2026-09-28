@@ -1,6 +1,7 @@
 """Coordinator: one shared connection, OBSERVE push + slow poll fallback."""
 from __future__ import annotations
 
+import asyncio
 import logging
 from datetime import timedelta
 
@@ -47,16 +48,29 @@ class SoundbarCoordinator(DataUpdateCoordinator[dict]):
 
     # -- poll (seed + keepalive/fallback) --------------------------------
     async def _async_update_data(self) -> dict:
+        # Bound the poll so a blocked socket can never wedge setup at
+        # "Initialising" — a timeout surfaces as a retry, not a hang.
         try:
-            data = await self.hass.async_add_executor_job(self._poll_all)
-        except SoundbarError as err:
-            raise UpdateFailed(str(err)) from err
-
-        if not self._observing:
-            # Register OBSERVE relations once; reconnects re-subscribe on their own.
-            await self.hass.async_add_executor_job(self.client.observe, OBSERVE_HREFS)
-            self._observing = True
+            async with asyncio.timeout(45):
+                data = await self.hass.async_add_executor_job(self._poll_all)
+        except (SoundbarError, TimeoutError) as err:
+            raise UpdateFailed(str(err) or "timed out") from err
         return data
+
+    async def async_start_observe(self) -> None:
+        """Register OBSERVE relations after setup, off the critical path.
+
+        Runs as a background task so a slow or blocked subscribe can never
+        delay the config entry from finishing setup. Reconnects re-subscribe
+        on their own, so this only needs to run once.
+        """
+        if self._observing:
+            return
+        self._observing = True
+        try:
+            await self.hass.async_add_executor_job(self.client.observe, OBSERVE_HREFS)
+        except Exception as err:  # noqa: BLE001 - never fail setup over push
+            _LOGGER.warning("OBSERVE setup failed; falling back to polling: %s", err)
 
     def _poll_all(self) -> dict:
         data: dict[str, dict] = dict(self.data or {})

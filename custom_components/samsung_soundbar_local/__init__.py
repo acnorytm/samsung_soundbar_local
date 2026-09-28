@@ -29,6 +29,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+
+    # Register OBSERVE push in the background so a slow/blocked subscribe can
+    # never hold up setup; polling covers state until it's live.
+    entry.async_create_background_task(
+        hass, coordinator.async_start_observe(), "samsung_soundbar_local-observe"
+    )
     return True
 
 
