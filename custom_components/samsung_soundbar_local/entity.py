@@ -1,7 +1,10 @@
 """Shared base entity and device info."""
 from __future__ import annotations
 
-from homeassistant.helpers.device_info import DeviceInfo
+try:  # HA >= 2025.x exposes DeviceInfo as its own module
+    from homeassistant.helpers.device_info import DeviceInfo
+except ImportError:  # older cores export it from helpers.entity
+    from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
