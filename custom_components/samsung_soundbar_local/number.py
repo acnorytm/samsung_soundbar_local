@@ -122,9 +122,11 @@ class ChannelLevelNumber(_BaseNumber):
         return None if e is None else e.get("value")
 
     async def async_set_native_value(self, value: float) -> None:
-        # Rebuild the full array with this channel's value changed.
-        array = [dict(i) for i in self.rep(R_CHANNEL).get(f"{NS}.channelVolume", [])]
-        for item in array:
-            if item.get("name") == self._spk:
-                item["value"] = int(value)
-        await self.coordinator.async_write(R_CHANNEL, {f"{NS}.channelVolume": array})
+        # The soundbar only applies a channelVolume write sent as a SINGLE
+        # entry carrying name + value + status. Posting the whole array (or an
+        # entry without status) returns 2.04 but is silently ignored.
+        status = (self._entry() or {}).get("status", 1)
+        await self.coordinator.async_write(
+            R_CHANNEL,
+            {f"{NS}.channelVolume": [{"name": self._spk, "value": int(value), "status": status}]},
+        )
