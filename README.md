@@ -32,9 +32,9 @@ HACS and hassfest validators on every push.
 
 ## Configure
 
-1. **Settings → Devices & Services → Add Integration → "Samsung Soundbar (Local)"**.
+1. **Settings → Devices & Services → Add Integration → "Soundbar Local"**.
 2. Enter:
-   - **IP address**: your soundbar's LAN IP (e.g. `192.168.1.50`)
+   - **IP address**: your soundbar's LAN IP
    - **Secure DTLS port**: `47791` (re-read `/oic/res` if it differs)
    - **PSK identity**: your OCF owner UUID, e.g. `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`
    - **PSK key**: your OwnerPSK, 32 hex chars
